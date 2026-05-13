@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>邮轮行业 BI 数据分析模块 — 交互原型</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif; background: #f0f2f5; color: #333; }
+.header { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); color: #fff; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 22px; font-weight: 600; }
+.header .meta { font-size: 13px; opacity: 0.8; }
+.nav-tabs { background: #fff; border-bottom: 1px solid #e8e8e8; padding: 0 32px; display: flex; gap: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.nav-tab { padding: 14px 24px; cursor: pointer; font-size: 14px; font-weight: 500; color: #666; border-bottom: 3px solid transparent; transition: all 0.2s; }
+.nav-tab:hover { color: #1a237e; }
+.nav-tab.active { color: #1a237e; border-bottom-color: #1a237e; }
+.container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+.filters { background: #fff; border-radius: 8px; padding: 16px 24px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.filter-item { display: flex; align-items: center; gap: 8px; }
+.filter-item label { font-size: 13px; color: #666; white-space: nowrap; }
+.filter-item select, .filter-item input { padding: 6px 12px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; background: #fff; }
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.kpi-card { background: #fff; border-radius: 8px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.kpi-card .kpi-label { font-size: 13px; color: #888; margin-bottom: 8px; }
+.kpi-card .kpi-value { font-size: 28px; font-weight: 700; color: #1a237e; }
+.kpi-card .kpi-change { font-size: 12px; margin-top: 4px; }
+.kpi-card .kpi-change.up { color: #52c41a; }
+.kpi-card .kpi-change.down { color: #f5222d; }
+.kpi-card .kpi-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
+.chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.chart-full { grid-template-columns: 1fr; }
+.chart-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.chart-card h3 { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+.chart-box { width: 100%; height: 300px; }
+.chart-box.tall { height: 380px; }
+.table-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 20px; }
+.table-card h3 { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 16px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #fafafa; padding: 10px 12px; text-align: left; font-weight: 600; color: #555; border-bottom: 1px solid #e8e8e8; }
+td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+tr:hover td { background: #f6f8ff; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+.badge-green { background: #f6ffed; color: #52c41a; }
+.badge-blue { background: #e6f7ff; color: #1890ff; }
+.badge-orange { background: #fff7e6; color: #fa8c16; }
+.badge-red { background: #fff1f0; color: #f5222d; }
+.section { display: none; }
+.section.active { display: block; }
+.arch-diagram { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 20px; }
+.arch-diagram pre { font-size: 12px; line-height: 1.6; background: #f8f9fa; padding: 20px; border-radius: 6px; overflow-x: auto; }
+.timeline { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.timeline-item { display: flex; gap: 16px; padding: 12px 0; border-left: 3px solid #1a237e; padding-left: 20px; margin-left: 10px; margin-bottom: 8px; }
+.timeline-item .week { font-weight: 700; color: #1a237e; min-width: 60px; }
+.timeline-item .content { color: #555; font-size: 14px; }
+.milestone { background: #e6f7ff; border-left-color: #1890ff; border-radius: 0 6px 6px 0; padding: 12px 20px; }
+@media (max-width: 768px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } .chart-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>邮轮行业 BI 数据分析平台</h1>
+    <div class="meta">Cruise Line Business Intelligence Module v1.0 | 数据截止: 2026-05-12 T+1</div>
+  </div>
+  <div class="meta">示例数据参考: RCCL / Ponant 运营指标</div>
+</div>
+
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="switchTab('booking')">收益与预订</div>
+  <div class="nav-tab" onclick="switchTab('onboard')">船上消费</div>
+  <div class="nav-tab" onclick="switchTab('passenger')">旅客画像</div>
+  <div class="nav-tab" onclick="switchTab('arch')">技术架构</div>
+  <div class="nav-tab" onclick="switchTab('plan')">交付计划</div>
+</div>
+<!-- ==================== 收益与预订 ==================== -->
+<div class="section active" id="sec-booking">
+<div class="container">
+  <div class="filters">
+    <div class="filter-item"><label>航季:</label><select id="f-season"><option>2026春夏航季</option><option>2025秋冬航季</option><option>2025春夏航季</option></select></div>
+    <div class="filter-item"><label>航次:</label><select id="f-voyage"><option>全部航次</option><option>Spectrum-2026S01 上海→冲绳</option><option>Spectrum-2026S02 上海→长崎</option><option>Explorer-2026S01 深圳→越南</option><option>Ponant-2026S01 三亚→西沙</option></select></div>
+    <div class="filter-item"><label>业务类型:</label><select><option>全部</option><option>散客</option><option>包船</option><option>团队</option><option>MICE</option></select></div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">总载客率 Occupancy Rate</div>
+      <div class="kpi-value">82.6%</div>
+      <div class="kpi-change up">&#9650; 4.3% vs 上航季</div>
+      <div class="kpi-sub">已售 2,864 / 可售 3,468 床位</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">净票务收入 Net Ticket Revenue</div>
+      <div class="kpi-value">¥18.6M</div>
+      <div class="kpi-change up">&#9650; 12% vs 预算</div>
+      <div class="kpi-sub">毛收入 ¥21.2M / 佣金+退款 ¥2.6M</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">人均票价 ATP</div>
+      <div class="kpi-value">¥6,498</div>
+      <div class="kpi-change up">&#9650; 8% vs 去年同期</div>
+      <div class="kpi-sub">RevPBD: ¥928/床位日</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">取消率 Cancellation Rate</div>
+      <div class="kpi-value">3.8%</div>
+      <div class="kpi-change up">&#9660; 1.2% vs 均值</div>
+      <div class="kpi-sub">取消 109 单 / 总计 2,868 单</div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card"><h3>预订进度曲线 Booking Pace (离航日倒推)</h3><div class="chart-box" id="chart-pace"></div></div>
+    <div class="chart-card"><h3>渠道占比 Channel Mix</h3><div class="chart-box" id="chart-channel"></div></div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card"><h3>舱型载客率对比</h3><div class="chart-box" id="chart-cabin"></div></div>
+    <div class="chart-card"><h3>提前预订天数分布 Lead Time</h3><div class="chart-box" id="chart-leadtime"></div></div>
+  </div>
+
+  <div class="table-card">
+    <h3>近期航次排行</h3>
+    <table>
+      <thead><tr><th>航次</th><th>船舶</th><th>航线</th><th>出发日</th><th>载客率</th><th>净收入</th><th>ATP</th><th>包船占比</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td>2026S01</td><td>Spectrum of the Seas</td><td>上海→冲绳 5晚</td><td>2026-03-15</td><td>91.2%</td><td>¥5.8M</td><td>¥7,200</td><td>22%</td><td><span class="badge badge-green">已完航</span></td></tr>
+        <tr><td>2026S02</td><td>Spectrum of the Seas</td><td>上海→长崎 4晚</td><td>2026-03-22</td><td>87.5%</td><td>¥4.2M</td><td>¥6,100</td><td>15%</td><td><span class="badge badge-green">已完航</span></td></tr>
+        <tr><td>2026S03</td><td>Explorer Dream</td><td>深圳→越南 6晚</td><td>2026-04-05</td><td>78.3%</td><td>¥3.9M</td><td>¥5,800</td><td>35%</td><td><span class="badge badge-green">已完航</span></td></tr>
+        <tr><td>2026S04</td><td>Le Ponant</td><td>三亚→西沙 4晚</td><td>2026-04-12</td><td>95.0%</td><td>¥2.8M</td><td>¥18,500</td><td>0%</td><td><span class="badge badge-green">已完航</span></td></tr>
+        <tr><td>2026S05</td><td>Spectrum of the Seas</td><td>上海→济州 3晚</td><td>2026-05-18</td><td>72.1%</td><td>¥2.1M</td><td>¥5,400</td><td>18%</td><td><span class="badge badge-blue">预售中</span></td></tr>
+        <tr><td>2026S06</td><td>Explorer Dream</td><td>深圳→马尼拉 7晚</td><td>2026-06-01</td><td>45.8%</td><td>¥1.9M</td><td>¥6,300</td><td>40%</td><td><span class="badge badge-orange">预售中</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- ==================== 船上消费 ==================== -->
+<div class="section" id="sec-onboard">
+<div class="container">
+  <div class="filters">
+    <div class="filter-item"><label>航次:</label><select><option>Spectrum-2026S01 上海→冲绳</option><option>Spectrum-2026S02 上海→长崎</option><option>Explorer-2026S03 深圳→越南</option><option>Ponant-2026S04 三亚→西沙</option></select></div>
+    <div class="filter-item"><label>业态:</label><select><option>全部</option><option>餐饮</option><option>酒吧</option><option>SPA</option><option>免税店</option><option>岸上观光</option><option>赌场</option><option>Wi-Fi</option></select></div>
+    <div class="filter-item"><label>旅客类型:</label><select><option>全部</option><option>散客</option><option>包船旅客</option><option>MICE</option></select></div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">人均船上消费 SPPD</div>
+      <div class="kpi-value">¥628/天</div>
+      <div class="kpi-change up">&#9650; 9% vs 上航季</div>
+      <div class="kpi-sub">航程5天 × 旅客1,580人</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">船上消费总额 Total OBR</div>
+      <div class="kpi-value">¥4.96M</div>
+      <div class="kpi-change up">&#9650; 15% vs 预算</div>
+      <div class="kpi-sub">占总收入 46%</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">套餐渗透率 Package Penetration</div>
+      <div class="kpi-value">68%</div>
+      <div class="kpi-change up">&#9650; 5% vs 上航次</div>
+      <div class="kpi-sub">饮料包58% / Wi-Fi包72% / 岸游包45%</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">岸上观光购买率 Shorex</div>
+      <div class="kpi-value">52%</div>
+      <div class="kpi-change up">&#9650; 3%</div>
+      <div class="kpi-sub">冲绳首里城 68% | 国际通 45%</div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card"><h3>业态收入占比 Revenue Center Mix</h3><div class="chart-box" id="chart-obr-mix"></div></div>
+    <div class="chart-card"><h3>SPPD 航次趋势</h3><div class="chart-box" id="chart-sppd-trend"></div></div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card"><h3>消费时段热力图 (航行日)</h3><div class="chart-box tall" id="chart-heatmap"></div></div>
+    <div class="chart-card"><h3>包船旅客 vs 散客 消费对比</h3><div class="chart-box" id="chart-charter-vs-fit"></div></div>
+  </div>
+
+  <div class="table-card">
+    <h3>免税品热销 TOP 10</h3>
+    <table>
+      <thead><tr><th>#</th><th>商品</th><th>品类</th><th>销量</th><th>销售额</th><th>购买人群</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>SK-II 神仙水 230ml</td><td>护肤</td><td>286</td><td>¥342,800</td><td>女性 30-45岁</td></tr>
+        <tr><td>2</td><td>Dyson Airwrap</td><td>电器</td><td>128</td><td>¥512,000</td><td>女性 25-40岁</td></tr>
+        <tr><td>3</td><td>茅台飞天 500ml</td><td>酒类</td><td>95</td><td>¥266,000</td><td>男性 40-55岁</td></tr>
+        <tr><td>4</td><td>La Mer 面霜 60ml</td><td>护肤</td><td>82</td><td>¥229,600</td><td>女性 35-50岁</td></tr>
+        <tr><td>5</td><td>Cartier Love 手镯</td><td>珠宝</td><td>15</td><td>¥675,000</td><td>女性 30-45岁</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- ==================== 旅客画像 ==================== -->
+<div class="section" id="sec-passenger">
+<div class="container">
+  <div class="filters">
+    <div class="filter-item"><label>时间范围:</label><select><option>2026年全年</option><option>2025年全年</option><option>近6个月</option></select></div>
+    <div class="filter-item"><label>会员等级:</label><select><option>全部</option><option>钻石</option><option>金卡</option><option>银卡</option><option>普通</option></select></div>
+    <div class="filter-item"><label>旅客类型:</label><select><option>全部</option><option>首航</option><option>回头客</option></select></div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">累计旅客数 Total Guests</div>
+      <div class="kpi-value">52,836</div>
+      <div class="kpi-change up">&#9650; 18% vs 去年</div>
+      <div class="kpi-sub">本航季新增 8,420 人</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">新客占比 New Guest Ratio</div>
+      <div class="kpi-value">64%</div>
+      <div class="kpi-change down">&#9660; 3% vs 去年</div>
+      <div class="kpi-sub">回头客占比提升中</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">复购率 Repeat Rate</div>
+      <div class="kpi-value">36%</div>
+      <div class="kpi-change up">&#9650; 5% vs 去年</div>
+      <div class="kpi-sub">平均复购间隔 8.2 个月</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">NPS 净推荐值</div>
+      <div class="kpi-value">58</div>
+      <div class="kpi-change up">&#9650; 3 vs 上航季</div>
+      <div class="kpi-sub">推荐者 72% / 贬损者 14%</div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card"><h3>客源地分布 TOP 10 城市</h3><div class="chart-box" id="chart-source"></div></div>
+    <div class="chart-card"><h3>旅客年龄段 × 家庭结构</h3><div class="chart-box" id="chart-age"></div></div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card"><h3>会员等级金字塔</h3><div class="chart-box" id="chart-loyalty"></div></div>
+    <div class="chart-card"><h3>NPS 分项雷达图</h3><div class="chart-box" id="chart-nps"></div></div>
+  </div>
+
+  <div class="table-card">
+    <h3>高价值旅客 TOP (LTV)</h3>
+    <table>
+      <thead><tr><th>旅客ID</th><th>姓名</th><th>累计航次</th><th>LTV</th><th>会员等级</th><th>最近航次</th><th>家庭结构</th><th>RFM分群</th></tr></thead>
+      <tbody>
+        <tr><td>P-00128</td><td>张**</td><td>12</td><td>¥386,000</td><td><span class="badge badge-orange">钻石</span></td><td>2026-04-12</td><td>情侣</td><td>高价值活跃</td></tr>
+        <tr><td>P-00456</td><td>李**</td><td>9</td><td>¥298,000</td><td><span class="badge badge-orange">钻石</span></td><td>2026-03-22</td><td>家庭</td><td>高价值活跃</td></tr>
+        <tr><td>P-01023</td><td>王**</td><td>7</td><td>¥215,000</td><td><span class="badge badge-blue">金卡</span></td><td>2026-04-05</td><td>银发</td><td>高价值沉默</td></tr>
+        <tr><td>P-00892</td><td>陈**</td><td>6</td><td>¥186,000</td><td><span class="badge badge-blue">金卡</span></td><td>2026-03-15</td><td>情侣</td><td>高价值活跃</td></tr>
+        <tr><td>P-02156</td><td>刘**</td><td>5</td><td>¥162,000</td><td><span class="badge badge-blue">金卡</span></td><td>2026-04-12</td><td>商务</td><td>中价值活跃</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- ==================== 技术架构 ==================== -->
+<div class="section" id="sec-arch">
+<div class="container">
+  <div class="arch-diagram">
+    <h3 style="font-size:16px; margin-bottom:16px;">整体架构 (MVP 阶段)</h3>
+    <pre>
+┌─────────────────────────────────────────────────────────────┐
+│                         前端 (BI 模块)                        │
+│   ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
+│   │ 预订看板  │  │ 消费看板  │  │ 旅客看板  │   (Vue/React)   │
+│   └─────┬────┘  └─────┬────┘  └─────┬────┘                 │
+│         └──────────────┼──────────────┘                      │
+│                        │ REST API                            │
+├────────────────────────┼────────────────────────────────────┤
+│                   BI API 服务层                               │
+│   ┌────────────────────────────────────────────┐            │
+│   │  聚合查询引擎 (参数化SQL + 缓存)             │            │
+│   │  - 指标计算层 (封装各指标SQL)                │            │
+│   │  - 维度切片层 (航次/舱型/渠道/标签)          │            │
+│   │  - 权限过滤层 (按角色)                      │            │
+│   └────────────────────┬───────────────────────┘            │
+├────────────────────────┼────────────────────────────────────┤
+│                   数据聚合层                                  │
+│   ┌────────────────────────────────────────────┐            │
+│   │  物化视图 / 汇总表 (T+1 定时刷新)            │            │
+│   │  ┌──────────┐ ┌──────────┐ ┌──────────┐   │            │
+│   │  │ 预订汇总  │ │ 消费汇总  │ │ 旅客汇总  │   │            │
+│   │  └──────────┘ └──────────┘ └──────────┘   │            │
+│   └────────────────────┬───────────────────────┘            │
+│                        │ ETL (T+1 定时)                      │
+├────────────────────────┼────────────────────────────────────┤
+│                   业务数据库层                                 │
+│   ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
+│   │  CRS DB   │  │  PMS DB   │  │  PSS DB   │               │
+│   └──────────┘  └──────────┘  └──────────┘                 │
+└─────────────────────────────────────────────────────────────┘</pre>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-card">
+      <h3>技术选型</h3>
+      <table>
+        <thead><tr><th>层级</th><th>MVP 方案</th><th>后续升级</th></tr></thead>
+        <tbody>
+          <tr><td>前端图表</td><td>ECharts / AntV G2Plot</td><td>同</td></tr>
+          <tr><td>API 层</td><td>Java Spring Boot + BI Controller</td><td>独立微服务</td></tr>
+          <tr><td>数据聚合</td><td>物化视图 + xxl-job</td><td>ClickHouse/StarRocks</td></tr>
+          <tr><td>数据存储</td><td>业务库 bi_ 前缀汇总表</td><td>独立分析库</td></tr>
+          <tr><td>缓存</td><td>Redis (TTL=1天)</td><td>同</td></tr>
+          <tr><td>导出</td><td>EasyExcel</td><td>同</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="chart-card">
+      <h3>数据源适配策略</h3>
+      <table>
+        <thead><tr><th>部署情况</th><th>可用模块</th><th>降级说明</th></tr></thead>
+        <tbody>
+          <tr><td>仅 CRS</td><td>预订 + 旅客(部分)</td><td>OBR隐藏, LTV仅票务</td></tr>
+          <tr><td>CRS + PMS</td><td>预订 + 消费 + 旅客</td><td>完整LTV</td></tr>
+          <tr><td>CRS + PSS</td><td>预订 + 旅客(含NPS)</td><td>OBR隐藏</td></tr>
+          <tr><td>CRS+PMS+PSS</td><td>全部</td><td>最佳体验</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ==================== 交付计划 ==================== -->
+<div class="section" id="sec-plan">
+<div class="container">
+  <div class="timeline">
+    <h3 style="font-size:16px; margin-bottom:20px;">MVP 交付计划 (8-12周)</h3>
+    <div class="timeline-item"><span class="week">W1-2</span><span class="content">需求确认 + 汇总表设计 + ETL 开发环境搭建</span></div>
+    <div class="timeline-item"><span class="week">W3-4</span><span class="content">ETL 开发: CRS → bi_voyage_booking_summary</span></div>
+    <div class="timeline-item milestone"><span class="week">W5-6</span><span class="content"><strong>M1: 预订分析上线</strong> — 看板 A1(高管总览) + B1(收益经理下钻)</span></div>
+    <div class="timeline-item"><span class="week">W7-8</span><span class="content">ETL: PMS → bi_voyage_obr_summary, 看板 A2+B2</span></div>
+    <div class="timeline-item milestone"><span class="week">W8</span><span class="content"><strong>M2: 船上消费上线</strong></span></div>
+    <div class="timeline-item"><span class="week">W9-10</span><span class="content">ETL: 旅客画像宽表, 看板 A3+B3</span></div>
+    <div class="timeline-item"><span class="week">W11-12</span><span class="content">联调、UAT、性能优化、上线</span></div>
+    <div class="timeline-item milestone"><span class="week">W12</span><span class="content"><strong>M3: 旅客画像上线, MVP 完整交付</strong></span></div>
+  </div>
+</div>
+</div>
+
+<script>
+// ========== Tab Switching ==========
+function switchTab(name) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('sec-' + name).classList.add('active');
+  // Re-render charts when switching to a tab
+  setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
+}
+
+// ========== 收益与预订 Charts ==========
+// Booking Pace Curve
+(function(){
+  var chart = echarts.init(document.getElementById('chart-pace'));
+  var days = []; for(var i=180; i>=0; i-=10) days.push(i);
+  var current = [5,9,14,20,28,35,42,50,58,65,71,76,79,81,82,83,84,85,86];
+  var lastYear = [4,7,11,16,22,28,34,40,47,53,59,64,68,71,73,75,76,77,78];
+  var budget = days.map(function(d){ return Math.round(85 * (1 - d/180) * 0.95 + 3); });
+  chart.setOption({
+    tooltip: { trigger: 'axis', formatter: function(p){ return '离航日 ' + p[0].axisValue + ' 天<br/>' + p.map(function(s){ return s.marker + s.seriesName + ': ' + s.value + '%'; }).join('<br/>'); }},
+    legend: { data: ['当前航次 (Spectrum S01)', '去年同期', '预算目标'], bottom: 0 },
+    grid: { top: 20, right: 20, bottom: 50, left: 50 },
+    xAxis: { type: 'category', data: days, name: '离航日(天)', nameLocation: 'center', nameGap: 30, inverse: true },
+    yAxis: { type: 'value', name: '载客率%', max: 100 },
+    series: [
+      { name: '当前航次 (Spectrum S01)', type: 'line', data: current, smooth: true, lineStyle: { width: 3 }, itemStyle: { color: '#1a237e' }},
+      { name: '去年同期', type: 'line', data: lastYear, smooth: true, lineStyle: { width: 2, type: 'dashed' }, itemStyle: { color: '#888' }},
+      { name: '预算目标', type: 'line', data: budget, smooth: true, lineStyle: { width: 2, type: 'dotted' }, itemStyle: { color: '#52c41a' }}
+    ]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// Channel Mix
+(function(){
+  var chart = echarts.init(document.getElementById('chart-channel'));
+  chart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+    legend: { bottom: 0, itemWidth: 12 },
+    series: [{
+      type: 'pie', radius: ['40%', '70%'], center: ['50%', '45%'],
+      label: { formatter: '{b}\n{d}%', fontSize: 12 },
+      data: [
+        { value: 890, name: '直销官网', itemStyle: { color: '#1a237e' }},
+        { value: 620, name: 'OTA', itemStyle: { color: '#1890ff' }},
+        { value: 780, name: '旅行社', itemStyle: { color: '#52c41a' }},
+        { value: 420, name: '包船方', itemStyle: { color: '#fa8c16' }},
+        { value: 154, name: 'MICE企业', itemStyle: { color: '#722ed1' }}
+      ]
+    }]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// Cabin Occupancy
+(function(){
+  var chart = echarts.init(document.getElementById('chart-cabin'));
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { bottom: 0 },
+    grid: { top: 20, right: 20, bottom: 50, left: 60 },
+    xAxis: { type: 'category', data: ['内舱', '海景', '阳台', '迷你套房', '套房'] },
+    yAxis: { type: 'value', name: '载客率%', max: 100 },
+    series: [
+      { name: '当前航季', type: 'bar', data: [92, 85, 78, 72, 65], itemStyle: { color: '#1a237e' }, barWidth: '30%' },
+      { name: '上航季', type: 'bar', data: [88, 80, 72, 68, 60], itemStyle: { color: '#bbb' }, barWidth: '30%' }
+    ]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// Lead Time Distribution
+(function(){
+  var chart = echarts.init(document.getElementById('chart-leadtime'));
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { top: 20, right: 20, bottom: 40, left: 50 },
+    xAxis: { type: 'category', data: ['0-7天', '8-14天', '15-30天', '31-60天', '61-90天', '91-120天', '121-180天', '180天+'], axisLabel: { rotate: 30 } },
+    yAxis: { type: 'value', name: '订单数' },
+    series: [{
+      type: 'bar', data: [45, 120, 380, 650, 520, 480, 420, 253],
+      itemStyle: { color: function(p){ return p.dataIndex < 2 ? '#f5222d' : (p.dataIndex < 4 ? '#fa8c16' : '#1a237e'); } }
+    }]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// ========== 船上消费 Charts ==========
+// OBR Mix
+(function(){
+  var chart = echarts.init(document.getElementById('chart-obr-mix'));
+  chart.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { bottom: 0, itemWidth: 12 },
+    grid: { top: 20, right: 20, bottom: 60, left: 50 },
+    xAxis: { type: 'category', data: ['S01 冲绳', 'S02 长崎', 'S03 越南', 'S04 西沙'] },
+    yAxis: { type: 'value', name: '万元' },
+    series: [
+      { name: '餐饮', type: 'bar', stack: 'total', data: [85, 62, 78, 42], itemStyle: { color: '#1a237e' }},
+      { name: '酒吧', type: 'bar', stack: 'total', data: [65, 48, 55, 38], itemStyle: { color: '#1890ff' }},
+      { name: 'SPA', type: 'bar', stack: 'total', data: [42, 35, 38, 28], itemStyle: { color: '#52c41a' }},
+      { name: '免税店', type: 'bar', stack: 'total', data: [120, 95, 88, 62], itemStyle: { color: '#fa8c16' }},
+      { name: '岸上观光', type: 'bar', stack: 'total', data: [95, 72, 85, 55], itemStyle: { color: '#722ed1' }},
+      { name: '赌场', type: 'bar', stack: 'total', data: [55, 42, 48, 0], itemStyle: { color: '#eb2f96' }},
+      { name: 'Wi-Fi', type: 'bar', stack: 'total', data: [34, 28, 30, 22], itemStyle: { color: '#13c2c2' }}
+    ]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// SPPD Trend
+(function(){
+  var chart = echarts.init(document.getElementById('chart-sppd-trend'));
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { top: 20, right: 20, bottom: 40, left: 60 },
+    xAxis: { type: 'category', data: ['2025S08','2025S09','2025S10','2025S11','2025S12','2026S01','2026S02','2026S03','2026S04'] },
+    yAxis: { type: 'value', name: '¥/人/天', min: 400 },
+    series: [{
+      type: 'line', data: [485, 512, 498, 535, 568, 628, 595, 580, 642],
+      smooth: true, lineStyle: { width: 3, color: '#1a237e' },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{offset: 0, color: 'rgba(26,35,126,0.3)'},{offset: 1, color: 'rgba(26,35,126,0.02)'}]} },
+      markLine: { data: [{ type: 'average', name: '均值' }], lineStyle: { color: '#f5222d' } }
+    }]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// Heatmap
+(function(){
+  var chart = echarts.init(document.getElementById('chart-heatmap'));
+  var hours = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
+  var days = ['Day1 出发', 'Day2 海上', 'Day3 靠港', 'Day4 海上', 'Day5 返航'];
+  var data = [];
+  var base = [[2,3,5,8,12,8,6,10,8,6,15,18,22,25,20,12],[3,5,8,12,15,10,8,12,10,8,18,22,28,32,25,15],[1,2,3,5,4,3,2,3,2,2,8,12,15,18,12,8],[3,5,8,12,15,10,9,14,12,9,20,25,30,35,28,18],[2,4,6,10,12,8,5,8,6,5,12,15,18,20,15,10]];
+  for(var i=0;i<days.length;i++) for(var j=0;j<hours.length;j++) data.push([j, i, base[i][j]]);
+  chart.setOption({
+    tooltip: { formatter: function(p){ return days[p.value[1]] + ' ' + hours[p.value[0]] + '<br/>消费: ¥' + p.value[2] + '万'; }},
+    grid: { top: 10, right: 60, bottom: 40, left: 80 },
+    xAxis: { type: 'category', data: hours, splitArea: { show: true } },
+    yAxis: { type: 'category', data: days, splitArea: { show: true } },
+    visualMap: { min: 0, max: 35, calculable: true, orient: 'vertical', right: 0, top: 'center', inRange: { color: ['#e6f7ff', '#1890ff', '#0d47a1'] }},
+    series: [{ type: 'heatmap', data: data, label: { show: true, fontSize: 10 } }]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// Charter vs FIT
+(function(){
+  var chart = echarts.init(document.getElementById('chart-charter-vs-fit'));
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { bottom: 0 },
+    grid: { top: 20, right: 20, bottom: 50, left: 60 },
+    xAxis: { type: 'category', data: ['餐饮', '酒吧', 'SPA', '免税', '岸游', '赌场', 'Wi-Fi'] },
+    yAxis: { type: 'value', name: '¥/人/天' },
+    series: [
+      { name: '散客 (FIT)', type: 'bar', data: [128, 95, 68, 185, 156, 82, 45], itemStyle: { color: '#1a237e' }},
+      { name: '包船旅客', type: 'bar', data: [85, 62, 35, 95, 78, 45, 28], itemStyle: { color: '#fa8c16' }}
+    ]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// ========== 旅客画像 Charts ==========
+// Source Market
+(function(){
+  var chart = echarts.init(document.getElementById('chart-source'));
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    grid: { top: 10, right: 20, bottom: 30, left: 80 },
+    xAxis: { type: 'value' },
+    yAxis: { type: 'category', data: ['成都','杭州','苏州','南京','广州','深圳','天津','武汉','北京','上海'].reverse() },
+    series: [{
+      type: 'bar', data: [1250, 1580, 1820, 2100, 2450, 3200, 3580, 4100, 5800, 12600].reverse(),
+      itemStyle: { color: function(p){ return p.dataIndex < 3 ? '#1a237e' : (p.dataIndex < 6 ? '#1890ff' : '#91d5ff'); }},
+      label: { show: true, position: 'right', formatter: '{c}人' }
+    }]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// Age Distribution
+(function(){
+  var chart = echarts.init(document.getElementById('chart-age'));
+  chart.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { bottom: 0, itemWidth: 12 },
+    grid: { top: 20, right: 20, bottom: 50, left: 50 },
+    xAxis: { type: 'category', data: ['18-25', '26-35', '36-45', '46-55', '56-65', '65+'] },
+    yAxis: { type: 'value', name: '人数' },
+    series: [
+      { name: '独行', type: 'bar', stack: 'total', data: [320, 580, 280, 120, 85, 42], itemStyle: { color: '#722ed1' }},
+      { name: '情侣', type: 'bar', stack: 'total', data: [680, 1200, 850, 420, 180, 65], itemStyle: { color: '#eb2f96' }},
+      { name: '家庭(带儿童)', type: 'bar', stack: 'total', data: [120, 1800, 2400, 680, 120, 30], itemStyle: { color: '#52c41a' }},
+      { name: '银发', type: 'bar', stack: 'total', data: [0, 0, 80, 350, 1200, 1800], itemStyle: { color: '#fa8c16' }},
+      { name: '商务/MICE', type: 'bar', stack: 'total', data: [85, 420, 680, 520, 180, 45], itemStyle: { color: '#1890ff' }}
+    ]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// Loyalty Pyramid
+(function(){
+  var chart = echarts.init(document.getElementById('chart-loyalty'));
+  chart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+    series: [{
+      type: 'funnel', left: '15%', right: '15%', top: 20, bottom: 20,
+      min: 0, max: 100, sort: 'ascending',
+      label: { show: true, position: 'inside', formatter: '{b}\n{c}人' },
+      data: [
+        { value: 100, name: '钻石 (328人)', itemStyle: { color: '#fa8c16' }},
+        { value: 70, name: '金卡 (1,256人)', itemStyle: { color: '#1890ff' }},
+        { value: 45, name: '银卡 (4,820人)', itemStyle: { color: '#52c41a' }},
+        { value: 20, name: '普通 (46,432人)', itemStyle: { color: '#d9d9d9' }}
+      ]
+    }]
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+
+// NPS Radar
+(function(){
+  var chart = echarts.init(document.getElementById('chart-nps'));
+  chart.setOption({
+    tooltip: {},
+    radar: {
+      indicator: [
+        { name: '客房服务', max: 100 }, { name: '餐饮质量', max: 100 },
+        { name: '娱乐活动', max: 100 }, { name: '岸上观光', max: 100 },
+        { name: '船员服务', max: 100 }, { name: '设施维护', max: 100 }
+      ],
+      radius: '65%'
+    },
+    series: [{
+      type: 'radar',
+      data: [
+        { value: [82, 76, 68, 72, 88, 74], name: '当前航季', areaStyle: { color: 'rgba(26,35,126,0.2)' }, lineStyle: { color: '#1a237e' }},
+        { value: [78, 72, 65, 68, 85, 70], name: '上航季', lineStyle: { type: 'dashed', color: '#aaa' }}
+      ]
+    }],
+    legend: { bottom: 0, data: ['当前航季', '上航季'] }
+  });
+  window.addEventListener('resize', function(){ chart.resize(); });
+})();
+</script>
+</body>
+</html>
