@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>i18n 翻译批量修正工具</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #f5f7fa;
+    color: #2c3e50;
+    line-height: 1.6;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 24px 30px;
+  }
+  header h1 { font-size: 22px; margin-bottom: 4px; }
+  header p { font-size: 13px; opacity: 0.9; }
+  main { padding: 24px 30px; }
+
+  section { margin-bottom: 28px; }
+  section h3 {
+    font-size: 15px;
+    color: #2d3748;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #edf2f7;
+  }
+
+  .drop-zone {
+    border: 2px dashed #cbd5e0;
+    border-radius: 10px;
+    padding: 32px;
+    text-align: center;
+    background: #fafbfc;
+    transition: all 0.2s;
+  }
+  .drop-zone.dragover {
+    border-color: #667eea;
+    background: #eef0ff;
+  }
+  .drop-zone p { color: #718096; margin-bottom: 12px; }
+  .drop-zone .hint { font-size: 12px; color: #a0aec0; margin-top: 8px; }
+
+  .btn {
+    display: inline-block;
+    padding: 8px 16px;
+    margin: 2px;
+    border: none;
+    border-radius: 5px;
+    background: #667eea;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn:hover { background: #5568d3; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { background: #cbd5e0; cursor: not-allowed; transform: none; }
+  .btn.btn-secondary { background: #718096; }
+  .btn.btn-secondary:hover { background: #4a5568; }
+  .btn.btn-success { background: #48bb78; }
+  .btn.btn-success:hover { background: #38a169; }
+  .btn.btn-danger { background: #e53e3e; }
+  .btn.btn-danger:hover { background: #c53030; }
+  .btn.btn-small { padding: 4px 10px; font-size: 12px; }
+
+  .file-stats {
+    background: #edf2f7;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #4a5568;
+  }
+  .file-list {
+    list-style: none;
+    margin-top: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+  }
+  .file-list li {
+    padding: 7px 12px;
+    font-size: 12px;
+    border-bottom: 1px solid #edf2f7;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .file-list li:last-child { border-bottom: none; }
+  .file-list li.modified { background: #fffbeb; }
+  .file-list .modified-tag {
+    color: #b7791f;
+    font-size: 11px;
+    background: #fefcbf;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .file-list .count-tag { color: #a0aec0; font-size: 11px; }
+  .file-list .path { font-family: monospace; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .search-box, .replace-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .search-box input, .replace-box input {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 14px;
+    border: 1px solid #cbd5e0;
+    border-radius: 5px;
+    outline: none;
+    font-family: inherit;
+  }
+  .search-box input:focus, .replace-box input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+  }
+
+  .replace-box {
+    margin-top: 14px;
+    padding: 14px;
+    background: #f0fff4;
+    border: 1px solid #c6f6d5;
+    border-radius: 6px;
+  }
+
+  .results-summary {
+    margin: 10px 0;
+    font-size: 13px;
+    color: #4a5568;
+  }
+  .results-summary code {
+    background: #edf2f7;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .results-table th, .results-table td {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    text-align: left;
+    vertical-align: top;
+  }
+  .results-table th {
+    background: #f7fafc;
+    font-weight: 600;
+    font-size: 12px;
+    color: #4a5568;
+  }
+  .results-table tr:hover { background: #f7fafc; }
+  .results-table .value-cell { font-family: monospace; color: #2b6cb0; word-break: break-all; }
+  .results-table .path-cell { color: #718096; font-size: 12px; font-family: monospace; }
+  .results-table .file-cell { font-family: monospace; font-size: 12px; }
+  .results-table .num-cell { color: #a0aec0; width: 36px; text-align: center; }
+
+  .history-list {
+    list-style: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .history-list li {
+    padding: 9px 14px;
+    font-size: 13px;
+    border-bottom: 1px solid #edf2f7;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .history-list li:last-child { border-bottom: none; }
+  .history-list .change-info { flex: 1; min-width: 0; overflow: hidden; }
+  .history-list code {
+    background: #edf2f7;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+  .history-list .change-arrow { color: #a0aec0; margin: 0 6px; }
+  .history-list .change-new { color: #38a169; font-weight: 500; }
+  .history-list .count { color: #a0aec0; font-size: 12px; margin-left: 8px; }
+
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #2d3748;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    display: none;
+    font-size: 14px;
+    z-index: 9999;
+    animation: slideIn 0.2s ease-out;
+    max-width: 400px;
+  }
+  @keyframes slideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  #toast.success { background: #38a169; }
+  #toast.error { background: #e53e3e; }
+  #toast.info { background: #3182ce; }
+
+  .empty-state {
+    padding: 24px;
+    text-align: center;
+    color: #a0aec0;
+    font-size: 14px;
+    background: #f7fafc;
+    border-radius: 6px;
+  }
+
+  .download-area {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    padding: 14px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .download-area .info {
+    font-size: 13px;
+    color: #718096;
+  }
+
+  .step-disabled { opacity: 0.5; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🌐 i18n 翻译批量修正工具</h1>
+    <p>批量修正多语言文件中的翻译值，保留原目录结构、注释、格式</p>
+  </header>
+
+  <main>
+    <section id="step-upload">
+      <h3>① 上传文件</h3>
+      <div class="drop-zone" id="dropZone">
+        <p style="font-size:15px">📁 拖拽文件夹或文件到此处</p>
+        <p style="font-size:12px; color:#a0aec0">支持拖拽整个文件夹（保留目录结构）</p>
+        <div style="margin-top:12px">
+          <button class="btn" id="btnFolder">选择文件夹</button>
+          <button class="btn btn-secondary" id="btnFiles">选择文件</button>
+        </div>
+        <p class="hint">仅处理 .js 文件，其他文件会被忽略</p>
+        <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none">
+        <input type="file" id="fileInput" multiple accept=".js" style="display:none">
+      </div>
+      <div class="file-stats" id="fileStats" style="display:none"></div>
+      <ul class="file-list" id="fileList" style="display:none"></ul>
+    </section>
+
+    <section id="step-search" style="display:none">
+      <h3>② 搜索 key（精确匹配）</h3>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="输入要搜索的 key（精确匹配整个 key），按回车搜索...">
+        <button class="btn" id="btnSearch">🔍 搜索</button>
+        <button class="btn btn-secondary" id="btnClear">清空</button>
+      </div>
+      <div id="searchResults"></div>
+      <div id="replaceBox" class="replace-box" style="display:none">
+        <input type="text" id="newValueInput" placeholder="输入新的翻译值，按回车应用...">
+        <button class="btn btn-success" id="btnReplace">✅ 全部替换</button>
+      </div>
+    </section>
+
+    <section id="step-history" style="display:none">
+      <h3>③ 操作历史</h3>
+      <ul class="history-list" id="historyList"></ul>
+      <p style="margin-top:8px; font-size:12px; color:#a0aec0">提示：只能撤销最近一次操作。撤销后可以继续撤销前一步。</p>
+    </section>
+
+    <section id="step-download" style="display:none">
+      <h3>④ 下载结果</h3>
+      <div class="download-area">
+        <div class="info" id="downloadInfo">将打包所有文件（包括未修改的）为 zip，保留原始目录结构</div>
+        <button class="btn btn-success" id="btnDownload">📦 下载 zip</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/acorn@8.11.3/dist/acorn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<script>
+'use strict';
+
+// ========== State ==========
+const state = {
+  files: [],              // { name, relativePath, content, originalContent, entries, modified }
+  history: [],            // { key, newValue, affected: [{file,path,oldValue}], snapshots: [{relativePath,content,modified}] }
+  currentSearch: { key: '', results: [] },
+};
+
+// ========== DOM helpers ==========
+const $ = id => document.getElementById(id);
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ========== Toast ==========
+let toastTimer;
+function showToast(msg, type = 'info') {
+  const toast = $('toast');
+  toast.textContent = msg;
+  toast.className = type;
+  toast.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.style.display = 'none', 2800);
+}
+
+// ========== JS Parsing (acorn) ==========
+function parseJSFile(content) {
+  const ast = acorn.parse(content, {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+    allowHashBang: true,
+  });
+  const entries = [];
+  for (const node of ast.body) {
+    if (node.type === 'ExportDefaultDeclaration' && node.declaration && node.declaration.type === 'ObjectExpression') {
+      walkObject(node.declaration, [], entries);
+    } else if (node.type === 'ExportNamedDeclaration' && node.declaration && node.declaration.type === 'VariableDeclaration') {
+      for (const decl of node.declaration.declarations) {
+        if (decl.init && decl.init.type === 'ObjectExpression') {
+          walkObject(decl.init, [], entries);
+        }
+      }
+    }
+  }
+  return entries;
+}
+
+function walkObject(objNode, path, entries) {
+  for (const prop of objNode.properties) {
+    if (prop.type !== 'Property') continue; // skip SpreadElement / RestElement
+    let key;
+    if (prop.key.type === 'Identifier') key = prop.key.name;
+    else if (prop.key.type === 'Literal') key = String(prop.key.value);
+    else continue;
+
+    if (prop.value.type === 'Literal' && typeof prop.value.value === 'string') {
+      entries.push({
+        key,
+        path: [...path],
+        value: prop.value.value,
+        valueStart: prop.value.start,
+        valueEnd: prop.value.end,
+      });
+    } else if (prop.value.type === 'ObjectExpression') {
+      walkObject(prop.value, [...path, key], entries);
+    }
+    // Other value types (numbers, arrays, function calls) are skipped silently
+  }
+}
+
+// ========== File loading ==========
+async function loadFiles(filesWithPaths) {
+  let added = 0, ignored = 0, failed = 0;
+  const failedList = [];
+
+  for (const { file, relativePath } of filesWithPaths) {
+    if (!relativePath.toLowerCase().endsWith('.js')) {
+      ignored++;
+      continue;
+    }
+    let content;
+    try {
+      content = await file.text();
+    } catch (e) {
+      failed++;
+      failedList.push(relativePath + ' (读取失败)');
+      continue;
+    }
+    let entries;
+    try {
+      entries = parseJSFile(content);
+    } catch (e) {
+      failed++;
+      failedList.push(relativePath + ' (' + e.message + ')');
+      continue;
+    }
+    const fileObj = {
+      name: file.name,
+      relativePath,
+      content,
+      originalContent: content,
+      entries,
+      modified: false,
+    };
+    const existingIdx = state.files.findIndex(f => f.relativePath === relativePath);
+    if (existingIdx >= 0) state.files[existingIdx] = fileObj;
+    else state.files.push(fileObj);
+    added++;
+  }
+
+  state.files.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+  updateFileUI();
+
+  let msg = `✅ 加载 ${added} 个文件`;
+  if (ignored > 0) msg += `，忽略 ${ignored} 个非 .js`;
+  if (failed > 0) msg += `，${failed} 个失败`;
+  showToast(msg, failed > 0 ? 'error' : 'success');
+  if (failed > 0) console.warn('解析失败的文件:', failedList);
+
+  if (state.files.length > 0) {
+    $('step-search').style.display = '';
+    $('step-download').style.display = '';
+  }
+}
+
+function updateFileUI() {
+  if (state.files.length === 0) {
+    $('fileStats').style.display = 'none';
+    $('fileList').style.display = 'none';
+    return;
+  }
+  const totalEntries = state.files.reduce((s, f) => s + f.entries.length, 0);
+  const modifiedCount = state.files.filter(f => f.modified).length;
+
+  $('fileStats').style.display = '';
+  $('fileStats').innerHTML = `📂 已加载 <b>${state.files.length}</b> 个文件，共 <b>${totalEntries}</b> 条翻译${
+    modifiedCount > 0 ? `，<span style="color:#b7791f">已修改 ${modifiedCount} 个</span>` : ''
+  }`;
+
+  $('fileList').style.display = '';
+  $('fileList').innerHTML = state.files.map(f => `
+    <li class="${f.modified ? 'modified' : ''}">
+      <span class="path">${escapeHtml(f.relativePath)}</span>
+      <span style="display:flex; gap:8px; align-items:center">
+        ${f.modified ? '<span class="modified-tag">已修改</span>' : ''}
+        <span class="count-tag">${f.entries.length} 条</span>
+      </span>
+    </li>
+  `).join('');
+
+  $('downloadInfo').textContent = modifiedCount > 0
+    ? `已修改 ${modifiedCount} 个文件，共 ${state.files.length} 个文件将被打包`
+    : '尚未修改任何文件，点击下载将打包原始文件';
+}
+
+// ========== Drag & Drop ==========
+const dropZone = $('dropZone');
+
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', e => {
+  if (e.target === dropZone) dropZone.classList.remove('dragover');
+});
+dropZone.addEventListener('drop', async e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const items = e.dataTransfer.items;
+  const out = [];
+  if (items && items.length && items[0].webkitGetAsEntry) {
+    const entries = [];
+    for (const item of items) {
+      const entry = item.webkitGetAsEntry();
+      if (entry) entries.push(entry);
+    }
+    for (const entry of entries) {
+      await traverseEntry(entry, '', out);
+    }
+  } else {
+    for (const file of e.dataTransfer.files) {
+      out.push({ file, relativePath: file.name });
+    }
+  }
+  if (out.length) await loadFiles(out);
+});
+
+async function traverseEntry(entry, parentPath, out) {
+  if (entry.isFile) {
+    const file = await new Promise((res, rej) => entry.file(res, rej));
+    out.push({ file, relativePath: parentPath + entry.name });
+  } else if (entry.isDirectory) {
+    const reader = entry.createReader();
+    const all = [];
+    let batch;
+    do {
+      batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+      all.push(...batch);
+    } while (batch.length > 0);
+    for (const e of all) {
+      await traverseEntry(e, parentPath + entry.name + '/', out);
+    }
+  }
+}
+
+$('btnFolder').addEventListener('click', () => $('folderInput').click());
+$('btnFiles').addEventListener('click', () => $('fileInput').click());
+
+$('folderInput').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  const out = files.map(f => ({ file: f, relativePath: f.webkitRelativePath || f.name }));
+  await loadFiles(out);
+  e.target.value = '';
+});
+$('fileInput').addEventListener('change', async e => {
+  const files = [...e.target.files];
+  const out = files.map(f => ({ file: f, relativePath: f.name }));
+  await loadFiles(out);
+  e.target.value = '';
+});
+
+// ========== Search ==========
+function searchKey(key) {
+  const results = [];
+  for (const file of state.files) {
+    for (const entry of file.entries) {
+      if (entry.key === key) {
+        results.push({ file, entry });
+      }
+    }
+  }
+  return results;
+}
+
+$('btnSearch').addEventListener('click', doSearch);
+$('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+$('btnClear').addEventListener('click', () => {
+  $('searchInput').value = '';
+  $('searchResults').innerHTML = '';
+  $('replaceBox').style.display = 'none';
+  state.currentSearch = { key: '', results: [] };
+});
+
+function doSearch() {
+  const key = $('searchInput').value.trim();
+  if (!key) {
+    showToast('请输入要搜索的 key', 'error');
+    return;
+  }
+  const results = searchKey(key);
+  state.currentSearch = { key, results };
+  renderSearchResults();
+}
+
+function renderSearchResults() {
+  const { key, results } = state.currentSearch;
+  const container = $('searchResults');
+  if (!key) { container.innerHTML = ''; return; }
+
+  if (results.length === 0) {
+    container.innerHTML = `<div class="empty-state">未找到 key 为 <b>"${escapeHtml(key)}"</b> 的项</div>`;
+    $('replaceBox').style.display = 'none';
+    return;
+  }
+
+  container.innerHTML = `
+    <p class="results-summary">
+      找到 <b>${results.length}</b> 处匹配（key = <code>${escapeHtml(key)}</code>）：
+    </p>
+    <table class="results-table">
+      <thead>
+        <tr><th class="num-cell">#</th><th>文件</th><th>路径</th><th>当前 value</th></tr>
+      </thead>
+      <tbody>
+        ${results.map((r, i) => `
+          <tr>
+            <td class="num-cell">${i + 1}</td>
+            <td class="file-cell">${escapeHtml(r.file.relativePath)}</td>
+            <td class="path-cell">${r.entry.path.length ? escapeHtml(r.entry.path.join('.')) : '<i style="color:#cbd5e0">(根)</i>'}</td>
+            <td class="value-cell">${escapeHtml(JSON.stringify(r.entry.value))}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  $('replaceBox').style.display = '';
+  $('newValueInput').value = '';
+  $('newValueInput').focus();
+}
+
+// ========== Replace ==========
+$('btnReplace').addEventListener('click', doReplace);
+$('newValueInput').addEventListener('keydown', e => { if (e.key === 'Enter') doReplace(); });
+
+function quoteString(s, quote) {
+  return quote + s
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+    .replace(new RegExp(quote, 'g'), '\\' + quote)
+    + quote;
+}
+
+function doReplace() {
+  const { key, results } = state.currentSearch;
+  if (!key || results.length === 0) {
+    showToast('请先搜索出至少一条结果', 'error');
+    return;
+  }
+  const newValue = $('newValueInput').value;
+  if (newValue === '') {
+    if (!confirm('新值为空字符串，确定要把所有 value 替换为空吗？')) return;
+  }
+
+  // Snapshot affected files
+  const affectedFiles = [...new Set(results.map(r => r.file))];
+  const snapshots = affectedFiles.map(f => ({
+    relativePath: f.relativePath,
+    content: f.content,
+    modified: f.modified,
+  }));
+
+  // Group results by file, replace from back to front
+  const byFile = new Map();
+  for (const r of results) {
+    if (!byFile.has(r.file)) byFile.set(r.file, []);
+    byFile.get(r.file).push(r.entry);
+  }
+
+  const affected = [];
+  for (const [file, entries] of byFile) {
+    entries.sort((a, b) => b.valueStart - a.valueStart);
+    let content = file.content;
+    for (const entry of entries) {
+      const quote = content[entry.valueStart];
+      const replacement = quoteString(newValue, quote);
+      content = content.slice(0, entry.valueStart) + replacement + content.slice(entry.valueEnd);
+      affected.push({ file: file.relativePath, path: [...entry.path], oldValue: entry.value });
+    }
+    file.content = content;
+    try {
+      file.entries = parseJSFile(content);
+    } catch (e) {
+      // Should not happen; revert and abort
+      console.error('替换后解析失败，回滚此文件:', e);
+      const snap = snapshots.find(s => s.relativePath === file.relativePath);
+      if (snap) {
+        file.content = snap.content;
+        file.entries = parseJSFile(snap.content);
+      }
+      showToast('替换失败，已自动回滚', 'error');
+      return;
+    }
+    file.modified = file.content !== file.originalContent;
+  }
+
+  state.history.push({ key, newValue, affected, snapshots });
+  showToast(`✅ 已替换 ${affected.length} 处（${affectedFiles.length} 个文件）`, 'success');
+  updateFileUI();
+  renderHistory();
+  // Refresh search to show new values
+  state.currentSearch.results = searchKey(key);
+  renderSearchResults();
+}
+
+// ========== History / Undo ==========
+function renderHistory() {
+  const container = $('historyList');
+  if (state.history.length === 0) {
+    $('step-history').style.display = 'none';
+    return;
+  }
+  $('step-history').style.display = '';
+  const last = state.history.length - 1;
+  container.innerHTML = state.history.map((op, i) => {
+    const oldValues = [...new Set(op.affected.map(a => a.oldValue))];
+    const oldDisplay = oldValues.length === 1
+      ? escapeHtml(JSON.stringify(oldValues[0]))
+      : `<span title="${escapeHtml(oldValues.map(v=>JSON.stringify(v)).join('\n'))}">${oldValues.length} 个不同的旧值</span>`;
+    return `
+      <li>
+        <span class="change-info">
+          ${i + 1}. <code>${escapeHtml(op.key)}</code>
+          : ${oldDisplay}
+          <span class="change-arrow">→</span>
+          <span class="change-new">${escapeHtml(JSON.stringify(op.newValue))}</span>
+          <span class="count">(${op.affected.length} 处)</span>
+        </span>
+        ${i === last ? `<button class="btn btn-small btn-danger" id="btnUndo">↶ 撤销</button>` : ''}
+      </li>
+    `;
+  }).join('');
+  const btnUndo = $('btnUndo');
+  if (btnUndo) btnUndo.addEventListener('click', undoLast);
+}
+
+function undoLast() {
+  const op = state.history.pop();
+  if (!op) return;
+  for (const snap of op.snapshots) {
+    const file = state.files.find(f => f.relativePath === snap.relativePath);
+    if (file) {
+      file.content = snap.content;
+      try { file.entries = parseJSFile(snap.content); } catch (e) { console.error(e); }
+      file.modified = snap.modified;
+    }
+  }
+  showToast(`↶ 已撤销: ${op.key} → ${JSON.stringify(op.newValue)}`, 'info');
+  updateFileUI();
+  renderHistory();
+  if (state.currentSearch.key) {
+    state.currentSearch.results = searchKey(state.currentSearch.key);
+    renderSearchResults();
+  }
+}
+
+// ========== Download ==========
+$('btnDownload').addEventListener('click', async () => {
+  if (state.files.length === 0) {
+    showToast('请先上传文件', 'error');
+    return;
+  }
+  showToast('正在打包...', 'info');
+  try {
+    const zip = new JSZip();
+    for (const file of state.files) {
+      zip.file(file.relativePath, file.content);
+    }
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `i18n-corrected-${ts}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('✅ zip 已下载', 'success');
+  } catch (e) {
+    console.error(e);
+    showToast('打包失败: ' + e.message, 'error');
+  }
+});
+
+// ========== Keyboard shortcuts ==========
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    if (state.history.length > 0) {
+      e.preventDefault();
+      undoLast();
+    }
+  }
+});
+</script>
+</body>
+</html>
